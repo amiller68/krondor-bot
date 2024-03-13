@@ -1,10 +1,4 @@
 # Default Application Configuration
-log:
-  # Where to write logs when not in debug mode
-  file: './data/app.log'
-# TODO: Sqlite implementation, but for now just json
-history:
-  file: './data/history.json'
 model:
   # Openly Available Hermes 2.5 (7B) API running on LibertAI
   name: 'OpenHermes 2.5 (7B)'

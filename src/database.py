@@ -1,3 +1,59 @@
+from sqlalchemy import Column, Integer, String, DateTime, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+import os
+
+Base = declarative_base()
+
+# Model Declarations
+
+class MessageHistory(Base):
+    __tablename__ = 'messages'
+
+    id = Column(Integer, primary_key=True)
+
+    # Chat ID and message ID are unique together
+
+    chat_id = Column(String)
+    message_id = Column(String)
+
+    # Message metadata we need to store
+    
+    # Who sent the message
+    from_user = Column(String)
+    # If the message is a reply, who is it replying to. Otherwise, None
+    is_reply_to = Column(String)
+    # The message text itself
+    text = Column(String)
+
+    # When the message was sent. Set to the current time when the message is stored, not when it was sent
+    timestamp = Column(DateTime)
+
+    __table_args__ = (
+        UniqueConstraint('chat_id', 'message_id', name='uix_chat_id_message_id'),
+    )
+
+
+# Database Initialization and helpers
+
+class Database:
+    def __init__(self, database_url):
+        print(database_url)
+        self.engine = create_engine(database_url)
+        self.Session = sessionmaker(bind=self.engine)
+        Base.metadata.create_all(self.engine)
+
+    def add_message(self, chat_id, message_id, from_user, is_reply_to, text, timestamp):
+        # Synchronous method to add a message
+        pass
+
+    def query_messages(self, chat_id):
+        # Synchronous method to query messages
+        pass
+
+'''
 import json
 from typing import List
 
@@ -151,3 +207,4 @@ class History():
                     self.dump()
                     return None
         return None
+'''

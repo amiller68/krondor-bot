@@ -1,15 +1,7 @@
-import os
-import yaml
-from dotenv import load_dotenv
+from .config import Config
 
-# TODO: getopt() for cmd line arguments
-class Config():
-    tg_token: str
-    database_url: str
-    log_path: str
-    agent_config: any
-    
-    def __init__(self):
+class Bot():
+    def __init__(self, config: Config):
         # Set the Telegram token
         self.tg_token = os.getenv("TG_TOKEN")
         if self.tg_token is None:
