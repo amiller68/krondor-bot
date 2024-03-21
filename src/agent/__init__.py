@@ -1,4 +1,5 @@
 import json
+import time
 from os import system
 import re
 import sys
@@ -56,7 +57,7 @@ class Agent:
         self.user_prepend = agent_config["chat_ml"]["user_prepend"]
         self.user_append = agent_config["chat_ml"]["user_append"]
         self.stop_sequences = agent_config["chat_ml"]["stop_sequences"]
-        self.line_separator = agent_config["chat_ml"]["line_separator"]
+        self.line_separator = "\n"
 
         # Persona Configuration and Templates
         # TODO: better configuration handling for this
@@ -375,11 +376,25 @@ class Agent:
 
         Yields a tuple of ('update' | 'success' | 'error', message)
         """
+        start = time.time()
 
         chat_id = message.chat.id
         message_id = message.message_id
 
+        logger.info(
+            "Agent::yield_response()",
+            chat_id=chat_id,
+            message_id=message_id,
+        )
+
         prompt = await self.build_prompt(message, database)
+        used_tokens = calculate_number_of_tokens(prompt)
+
+        logger.info(
+            f"Agent::yield_response() - prompt used tokens: {used_tokens}",
+            chat_id=chat_id,
+            message_id=message_id,
+        )
 
         logger.debug(
             f"Constructed prompt: {prompt}",
@@ -391,6 +406,8 @@ class Agent:
         fn_calls = 0
         compounded_result = ""
         stopped_reason = None
+        completion_tokens = 0
+        recursive_tokens = 0
 
         while tries < self.max_tries:
             logger.debug(
@@ -402,6 +419,8 @@ class Agent:
             stopped, last_result = await self.complete(
                 prompt + compounded_result, chat_id
             )
+
+            completion_tokens += calculate_number_of_tokens(last_result)
 
             logger.debug(
                 f"Last result: {last_result}", chat_id=chat_id, message_id=message_id
@@ -456,7 +475,9 @@ class Agent:
                         message_id=message_id,
                     )
                 finally:
-                    compounded_result = f"{compounded_result}{self.line_separator}{function_call}{self.line_separator}{function_result}"
+                    function_message = f"{self.line_separator}{function_call}{self.line_separator}{function_result}"
+                    recursive_tokens += calculate_number_of_tokens(function_message)
+                    compounded_result = f"{compounded_result}{function_message}"
                     fn_calls += 1
                     # Continue to the next iteration without incurring a 'try'
                     continue
@@ -482,6 +503,7 @@ class Agent:
                     f"<function-result>{function_result_json_str}</function-result>"
                 )
                 last_result = f'{function_result}{self.line_separator}<function-note>{{"note": "You just fabricated a result. Please consider using a function call, instead of generating an uninformed result"}}</function-note>'
+                recursive_tokens += calculate_number_of_tokens(last_result)
                 logger.warn(
                     f"fabricated function result: {function_result_json_str}",
                     chat_id=chat_id,
@@ -551,6 +573,13 @@ class Agent:
 
                 # Strip \n from the front and back of the result
                 clean_result = clean_result.strip("\n")
+
+                total_time = time.time() - start
+                logger.info(
+                    f"Agent::yield_response(): completion tokens: {completion_tokens} | recursive tokens: {recursive_tokens} | depth: {fn_calls} | total time: {total_time}",
+                    chat_id=chat_id,
+                    message_id=message_id,
+                )
 
                 yield "success", clean_result
             else:

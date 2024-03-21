@@ -7,3 +7,8 @@ aiohttp
 requests
 wikipedia
 pyyaml
+langchain
+pydantic
+jsonschema
+yfinance
+nltk
